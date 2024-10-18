@@ -1,23 +1,23 @@
-******************************************
-MROS: Operating System for the KRZ02 Robot
-******************************************
+*******************************************
+KRZOS: Operating System for the KRZ03 Robot
+*******************************************
 
-**KRZ02** provides the core functionality of the *KRZ02 Robot*, a Raspberry
+**KRZOS** provides the core functionality of the *KRZ03 Robot*, a Raspberry
 Pi-based robot OS written in Python 3.
 
 (This document is a work-in-progress and does not reflect the actual project.)
 
-.. figure:: https://service.robots.org.nz/wiki/attach/MR01/MR01-2024-05-18.png
-   :width: 560px
+.. figure:: https://service.robots.org.nz/wiki/attach/KRZ03/KRZ02.jpg
+   :width: 620px
    :align: center
-   :height: 450px
-   :alt: The MR01 Robot (Phase 1)
+   :height: 540px
+   :alt: The KRZ03 Robot (Phase 1)
 
    A 3D model of the MR01 Robot.
 
 |
 
-The *MROS* library provides essential support designed as the basis of a
+The *KRZOS* library provides essential support designed as the basis of a
 `Behaviour-Based Systems (BBS) <https://en.wikipedia.org/wiki/Behavior-based_robotics>`_.
 This library is relatively "low-level" and, in theory, could be used for any Python 3 
 based robot.
@@ -60,12 +60,13 @@ Features
 Requirements
 ************
 
-This library requires Python 3.8.5 or newer. Some portions (modules) of the KROS
-code will only run on a Raspberry Pi, though KROS Core should function
-independently of the various Pi libraries.
+This library requires Python 3.8.5 or newer. It's currently being written using 
+Python 3.11.2. Some portions (modules) of the KRZOS code will only run on a 
+Raspberry Pi, though KRZOS Core should function independently of the various Pi 
+libraries.
 
-KROS requires installation of a number of dependencies (support libraries),
-which should be automatically installed via pip3 when you installed kros-core::
+KRZOS requires installation of a number of dependencies (support libraries). 
+There is currently no dependency management set up for this project.
 
 
 Status
@@ -73,7 +74,7 @@ Status
 
 Early days. The Phase 0 hardware is largely complete and migration and conversion
 of the `KROS-Core <https://github.com/ifurusato/kros-core/tree/main>`_ is being used
-as the basis of MROS.
+as the basis of MROS, which was forked to create KRZOS.
 
 .. note::
 
