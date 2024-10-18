@@ -1,9 +1,11 @@
-**********************************************
-MROS: Operating System for the MR01 Mars Rover
-**********************************************
+******************************************
+MROS: Operating System for the KRZ02 Robot
+******************************************
 
-**MROS** provides the core functionality of the *MR01 Mars Rover*, a Raspberry
+**KRZ02** provides the core functionality of the *KRZ02 Robot*, a Raspberry
 Pi-based robot OS written in Python 3.
+
+(This document is a work-in-progress and does not reflect the actual project.)
 
 .. figure:: https://service.robots.org.nz/wiki/attach/MR01/MR01-2024-05-18.png
    :width: 560px
