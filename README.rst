@@ -68,10 +68,26 @@ libraries.
 KRZOS requires installation of a number of dependencies (support libraries). 
 There is currently no dependency management set up for this project.
 
-* smbus2:       https://pypi.org/project/smbus2/
+First:
+
+  sudo apt install python3-pip
+
+then:
+
+* numpy:        https://numpy.org/
+    with:         sudo apt install python3-numpy
+* psutil:       https://pypi.org/project/psutil/
+    with:         sudo apt install python3-psutil
 * pyyaml:       https://pypi.org/project/PyYAML/
+    with:         sudo apt install python3-yaml
+* colorama:     https://pypi.org/project/colorama/
+    with:         sudo apt install python3-colorama
 * pytest:       https://docs.pytest.org/en/stable/getting-started.html
+    with:         sudo apt install python3-pytest
+* smbus2:       https://pypi.org/project/smbus2/
+    with:         sudo apt install python3-smbus2
 * rgbmatrix5x5: https://github.com/pimoroni/rgbmatrix5x5-python.git
+    with:         sudo pip3 install rgbmatrix5x5 --break-system-packages
 
 The original PiconZero library has been included and significantly refactored as
 a Python class, so it is not an external dependency.
