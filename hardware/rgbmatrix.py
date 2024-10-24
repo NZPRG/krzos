@@ -53,7 +53,6 @@ class RgbMatrix(object):
     :param level:         the log level
     '''
     def __init__(self, enable_port=True, enable_stbd=True, level=Level.INFO):
-        global enabled
         self._log = Logger("rgbmatrix", level)
         self._has_port_rgbmatrix = False
         self._has_stbd_rgbmatrix = False
@@ -79,7 +78,7 @@ class RgbMatrix(object):
         self._thread_PORT = None
         self._thread_STBD = None
         self._color = Color.RED # used by _solid
-        enabled = False
+        self._enabled = False
         self._closing = False
         self._closed = False
         self._display_type = DisplayType.DARK # default
@@ -88,7 +87,7 @@ class RgbMatrix(object):
         # color used by random display
         self._random_delay_sec = 0.05 # was 0.01 in original
         # color used by wipe display
-        self._wipe_color = Color.WHITE # default
+        self._wipe_color = Color.CORAL # default
         # used by _cpu:
         self._max_value = 0.0 # TEMP
         self._buf = numpy.zeros((5, 5))
@@ -117,8 +116,14 @@ class RgbMatrix(object):
             return [ RgbMatrix._solid, None ]
         elif self._display_type is DisplayType.SWORL:
             return [ RgbMatrix._sworl, None ]
+        elif self._display_type is DisplayType.WIPE_UP:
+            return [ RgbMatrix._wipe, WipeDirection.UP ]
+        elif self._display_type is DisplayType.WIPE_DOWN:
+            return [ RgbMatrix._wipe, WipeDirection.DOWN ]
         elif self._display_type is DisplayType.WIPE_LEFT:
             return [ RgbMatrix._wipe, WipeDirection.LEFT ]
+        elif self._display_type is DisplayType.WIPE_RIGHT:
+            return [ RgbMatrix._wipe, WipeDirection.RIGHT ]
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
     def enable(self):
@@ -126,16 +131,15 @@ class RgbMatrix(object):
         Enables/starts a thread for the target process. This does not need to
         be called if just using the matrix directly.
         '''
-        global enabled
         if not self._closed and not self._closing:
             if self._thread_PORT is None and self._thread_STBD is None:
-                enabled = True
+                self._enabled = True
                 _target = self._get_target()
                 if self._port_rgbmatrix:
-                    self._thread_PORT = Thread(name='rgb-port', target=_target[0], args=[self, self._port_rgbmatrix, _target[1]])
+                    self._thread_PORT = Thread(name='rgb-port', target=_target[0], args=[self, self._port_rgbmatrix, _target[1], lambda n: self._enabled], daemon=True)
                     self._thread_PORT.start()
                 if self._stbd_rgbmatrix:
-                    self._thread_STBD = Thread(name='rgb-stbd', target=_target[0], args=[self, self._stbd_rgbmatrix, _target[1]])
+                    self._thread_STBD = Thread(name='rgb-stbd', target=_target[0], args=[self, self._stbd_rgbmatrix, _target[1], lambda n: self._enabled], daemon=True)
                     self._thread_STBD.start()
                 self._log.debug('enabled.')
             else:
@@ -144,48 +148,47 @@ class RgbMatrix(object):
             self._log.warning('cannot enable: already closed.')
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-    def is_disabled(self):
-        global enabled
-        return not enabled
+    def enabled(self):
+        return self._enabled
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
     def disable(self):
-        global enabled
-        self._log.debug('disabling...')
-        enabled = False
-        if self._port_rgbmatrix:
-            self._clear(self._port_rgbmatrix)
-        if self._stbd_rgbmatrix:
-            self._clear(self._stbd_rgbmatrix)
+        self._log.info('disabling…')
+        self._enabled = False
         if self._thread_PORT != None:
             try:
                 self._thread_PORT.join(timeout=1.0)
-                self._log.debug('port rgbmatrix thread joined.')
-            except Exception:
-                pass
+                self._log.info('port rgbmatrix thread joined.')
+            except Exception as e:
+                self._log.error('error joining port rgbmatrix thread: {}'.format(e))
             finally:
                 self._thread_PORT = None
         if self._thread_STBD != None:
             try:
                 self._thread_STBD.join(timeout=1.0)
-                self._log.debug('starboard rgbmatrix thread joined.')
-            except Exception:
-                pass
+                self._log.info('starboard rgbmatrix thread joined.')
+            except Exception as e:
+                self._log.error('error joining starboard rgbmatrix thread: {}'.format(e))
             finally:
                 self._thread_STBD = None
-        self._log.debug('disabled.')
+        if self._port_rgbmatrix:
+            self._clear(self._port_rgbmatrix)
+        if self._stbd_rgbmatrix:
+            self._clear(self._stbd_rgbmatrix)
+        self._log.info('disabled.')
+        return self._enabled
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-    def _cpu(self, rgbmatrix5x5, arg):
+    def _cpu(self, rgbmatrix5x5, arg, is_enabled):
         '''
         A port of the CPU example from the Matrix 11x7.
 
         For some reasoon the output needs to be rotated 90 degrees to work properly.
         '''
-        self._log.info('starting cpu...')
+        self._log.info('starting cpu…')
         i = 0
         cpu_values = [0] * 5
-        while enabled:
+        while is_enabled:
             try:
                 cpu_values.pop(0)
                 cpu_values.append(psutil.cpu_percent())
@@ -209,7 +212,6 @@ class RgbMatrix(object):
         '''
         Plot a series of values into the display buffer.
         '''
-        global enabled
         _width  = 4
         _height = 5
         if low is None:
@@ -262,15 +264,14 @@ class RgbMatrix(object):
         return numpy.pad(self._buf, ((0, x_pad), (0, y_pad)), 'constant')
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-    def _rainbow(self, rgbmatrix5x5, arg):
+    def _rainbow(self, rgbmatrix5x5, arg, is_enabled):
         '''
         Display a rainbow pattern.
         '''
-        global enabled
-        self._log.info('starting rainbow...')
+        self._log.info('starting rainbow…')
         _spacing = 360.0 / 5.0
         _hue = 0
-        while enabled:
+        while is_enabled:
             for x in range(5):
                 for y in range(5):
                     _hue = int(time.time() * 100) % 360
@@ -280,7 +281,7 @@ class RgbMatrix(object):
                     rgbmatrix5x5.set_pixel(x, y, r, g, b)
 #                   r, g, b = [int(c * 255) for c in colorsys.hsv_to_rgb(h + 0.5, 1.0, 1.0)]
 #                   rainbow2.set_pixel(x, y, r, g, b)
-                if not enabled:
+                if not is_enabled:
                     break
             rgbmatrix5x5.show()
 #           rainbow2.show()
@@ -289,12 +290,11 @@ class RgbMatrix(object):
         self._log.info('rainbow ended.')
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-    def _sworl(self, rgbmatrix5x5, arg):
+    def _sworl(self, rgbmatrix5x5, arg, is_enabled):
         '''
         Display a sworl pattern, whatever that is.
         '''
-        global enabled
-        self._log.info('starting sworl...')
+        self._log.info('starting sworl…')
 
         try:
             for r in range(0, 10, 1):
@@ -307,14 +307,14 @@ class RgbMatrix(object):
                     rgbmatrix5x5.set_all(r, _blue, 0)
                     rgbmatrix5x5.show()
                     time.sleep(0.01)
-                if not enabled:
+                if not is_enabled:
                     break;
                 for r in range(250, 10, -10):
                     _blue = r - 128 if r > 128 else 0
                     rgbmatrix5x5.set_all(r, _blue, 0)
                     rgbmatrix5x5.show()
                     time.sleep(0.01)
-                if not enabled:
+                if not is_enabled:
                     break;
             self._log.info('sworl ended.')
         except KeyboardInterrupt:
@@ -333,11 +333,10 @@ class RgbMatrix(object):
             self._wipe_vertical(rgbmatrix5x5, direction)
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-    def _wipe_horizontal(self, rgbmatrix5x5, direction):
+    def _wipe_horizontal(self, rgbmatrix5x5, direction, is_enabled):
         '''
         Note: not implemented yet.
         '''
-        global enabled
         raise NotImplementedError()
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -345,37 +344,43 @@ class RgbMatrix(object):
         self._wipe_color = color
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-    def _wipe_vertical(self, rgbmatrix, direction):
+    def _wipe_vertical(self, rgbmatrix, direction, is_enabled):
         '''
-        Note: UP has not been implemented yet.
+        Wipe the display up or down.
         '''
-        global enabled
         if not rgbmatrix:
             self._log.debug('null RGB matrix argument.')
             return
         if direction is WipeDirection.DOWN:
-            self._log.info('starting wipe DOWN...')
+            _fore = Fore.GREEN
+            xra = [ [ 0, 5, 1 ], [ 4, -1, -1 ] ]
+            yra = [ [ 0, 5, 1 ], [ 4, -1, -1 ] ]
+            self._log.info('starting wipe DOWN…')
         elif direction is WipeDirection.UP:
-            raise NotImplementedError('wipe UP not implemented.')
+            _fore = Fore.RED
+            xra = [ [ 4, -1, -1 ], [ 0, 5, 1 ] ]
+            yra = [ [ 4, -1, -1 ], [ 0, 5, 1 ] ]
+            self._log.info('starting wipe UP…')
         else:
             raise ValueError('unrecognised direction argument.')
         _delay = 0.05
         self.set_color(Color.BLACK)
-#       self._set_color(rgbmatrix, Color.BLACK)
         time.sleep(0.1)
-        xra = [ [ 0, 5, 1 ], [ 4, -1, -1 ] ]
-        yra = [ [ 0, 5, 1 ], [ 4, -1, -1 ] ]
         colors = [ self._wipe_color, Color.BLACK ]
         try:
-            for i in range(0,2):
+            for i in range(0, 2, 1):
                 xr = xra[i]
                 yr = yra[i]
+#               print(_fore + "range: xr: {}; yr: {}".format(xr, yr) + Style.RESET_ALL)
                 r, g, b = colors[i].rgb
                 for x in range(xr[0], xr[1], xr[2]):
                     for y in range(yr[0], yr[1], yr[2]):
+#                       print(Fore.WHITE + "    x,y: ({},{})".format(x, y) + Style.RESET_ALL)
                         rgbmatrix.set_pixel(x, y, r, g, b)
                     rgbmatrix.show()
                     time.sleep(_delay)
+                if not is_enabled:
+                    break
             self._log.info('wipe ended.')
         except KeyboardInterrupt:
             self._log.info('wipe interrupted.')
@@ -387,10 +392,10 @@ class RgbMatrix(object):
         self._color = color
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-    def show(self, orientation):
-        if orientation is Orientation.PORT or orientation is Orientation.CNTR and self._port_rgbmatrix:
+    def show(self, orientation=None):
+        if orientation is None or orientation is Orientation.PORT or orientation is Orientation.CNTR and self._port_rgbmatrix:
             self._port_rgbmatrix.show()
-        if orientation is Orientation.STBD or orientation is Orientation.CNTR:
+        if orientation is None or orientation is Orientation.STBD or orientation is Orientation.CNTR:
             self._stbd_rgbmatrix.show()
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -432,29 +437,27 @@ class RgbMatrix(object):
             self._stbd_rgbmatrix.show()
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-    def _solid(self, rgbmatrix5x5, arg):
+    def _solid(self, rgbmatrix5x5, arg, is_enabled):
         '''
         Display a specified static, solid color on the available display(s).
         '''
-        global enabled
 #       self.set_color(self._color)
         if self._port_rgbmatrix:
             self._set_color(self._port_rgbmatrix, self._color)
         if self._stbd_rgbmatrix:
             self._set_color(self._stbd_rgbmatrix, self._color)
-        self._log.info('starting solid color to {}...'.format(str.lower(self._color.name)))
-        while enabled:
+        self._log.info('starting solid color to {}…'.format(str.lower(self._color.name)))
+        while is_enabled:
             time.sleep(0.2)
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-    def _dark(self, rgbmatrix5x5, arg):
+    def _dark(self, rgbmatrix5x5, arg, is_enabled):
         '''
         Display a dark static color.
         '''
-        global enabled
-        self._log.info('starting dark...')
+        self._log.info('starting dark…')
         self.set_color(Color.BLACK)
-        while enabled:
+        while is_enabled:
             time.sleep(0.2)
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -478,13 +481,13 @@ class RgbMatrix(object):
 #       self._port_rgbmatrix.clear()
 #       self._stbd_rgbmatrix.clear()
         if col < 5: # cols 0-4
-#           self._log.info(Fore.GREEN + 'displaying column {:d} on starboard matrix...'.format(col))
+#           self._log.info(Fore.GREEN + 'displaying column {:d} on starboard matrix…'.format(col))
             if self._port_rgbmatrix:
                 self.clear(Orientation.PORT, False)
             if self._stbd_rgbmatrix:
                 self._column(Orientation.STBD, col, blank=True)
         else: # cols 5-9
-#           self._log.info(Fore.RED   + 'displaying column {:d} on port matrix...'.format(col))
+#           self._log.info(Fore.RED   + 'displaying column {:d} on port matrix…'.format(col))
             if self._stbd_rgbmatrix:
                 self.clear(Orientation.STBD, False)
             if self._port_rgbmatrix:
@@ -530,14 +533,13 @@ class RgbMatrix(object):
         return gauss
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-    def _blinky(self, rgbmatrix5x5, arg):
+    def _blinky(self, rgbmatrix5x5, arg, is_enabled):
         '''
         Display a pair of blinky spots.
         '''
-        global enabled
-        self._log.info('starting blinky...')
+        self._log.info('starting blinky…')
         _delta = 0
-        while enabled:
+        while is_enabled:
             for i in range(3):
                 for z in list(range(1, 10)[::-1]) + list(range(1, 10)):
                     fwhm = 5.0/z
@@ -559,18 +561,17 @@ class RgbMatrix(object):
                     if t < 0.04:
                         time.sleep(0.04 - t)
                         pass
-                if not enabled:
+                if not is_enabled:
                     break
         self._clear(rgbmatrix5x5)
         self._log.info('blinky ended.')
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-    def _scan(self, rgbmatrix5x5, arg):
+    def _scan(self, rgbmatrix5x5, arg, is_enabled):
         '''
         KITT- or Cylon-like eyeball scanning.
         '''
-        global enabled
-        self._log.info('starting scan...')
+        self._log.info('starting scan…')
 
         r = int(255.0)
         g = int(64.0)
@@ -580,7 +581,7 @@ class RgbMatrix(object):
         x = 2
         _delay = 0.25
 
-        while enabled:
+        while is_enabled:
 #           for i in range(count):
             for y in range(0,5):
                 rgbmatrix5x5.clear()
@@ -592,7 +593,7 @@ class RgbMatrix(object):
                 rgbmatrix5x5.set_pixel(x, y, r, g, b)
                 rgbmatrix5x5.show()
                 time.sleep(_delay)
-            if not enabled:
+            if not is_enabled:
                 break
         self._clear(rgbmatrix5x5)
         self._log.debug('scan ended.')
@@ -623,14 +624,13 @@ class RgbMatrix(object):
         if delay_sec > 0.0:
             self._random_delay_sec = delay_sec
 
-    def _random(self, rgbmatrix5x5, arg):
+    def _random(self, rgbmatrix5x5, arg, is_enabled):
         '''
         Display an ever-changing random pattern.
         '''
-        global enabled
-        self._log.info('starting random...')
+        self._log.info('starting random…')
 #       count = 0
-        while enabled:
+        while is_enabled:
             rand_hue = numpy.random.uniform(0.1, 0.9)
             rand_mat = numpy.random.rand(5, 5)
             for y in range(5):
@@ -644,7 +644,7 @@ class RgbMatrix(object):
                     g = int(rgb[1]*255.0)
                     b = int(rgb[2]*255.0)
                     rgbmatrix5x5.set_pixel(x, y, r, g, b)
-            if not enabled:
+            if not is_enabled:
                 break
             rgbmatrix5x5.show()
             time.sleep(self._random_delay_sec)
@@ -743,15 +743,18 @@ class RgbMatrix(object):
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class DisplayType(Enum):
-    BLINKY    = 1
-    CPU       = 2
-    DARK      = 3
-    RAINBOW   = 4
-    RANDOM    = 5
-    SCAN      = 6
-    SWORL     = 7
-    SOLID     = 8
-    WIPE_LEFT = 9
+    BLINKY     = 1
+    CPU        = 2
+    DARK       = 3
+    RAINBOW    = 4
+    RANDOM     = 5
+    SCAN       = 6
+    SWORL      = 7
+    SOLID      = 8
+    WIPE_UP    = 9
+    WIPE_DOWN  = 10
+    WIPE_LEFT  = 11
+    WIPE_RIGHT = 12
 
 class WipeDirection(Enum):
     LEFT  = 0

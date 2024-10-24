@@ -90,7 +90,7 @@ try:
     _tb2.SetMotors(0.0)
 
 except KeyboardInterrupt:
-    _log.info('Ctrl-C caught; exiting...')
+    _log.info('Ctrl-C caught; exiting…')
 except Exception as e:
     _log.error('{} encountered, exiting: {}'.format(type(e), e))
 finally:

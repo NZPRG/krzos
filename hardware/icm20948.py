@@ -33,8 +33,6 @@ from core.orientation import Orientation
 from core.rate import Rate
 from core.ranger import Ranger
 from hardware.rgbmatrix import RgbMatrix, DisplayType
-from hardware.sound import Sound
-from hardware.player import Player
 
 IN_MIN  = 0.0      # minimum analog value from IO Expander
 IN_MAX  = 3.3      # maximum analog value from IO Expander
@@ -78,6 +76,10 @@ class Icm20948(Component):
         self._show_rgbmatrix11x7 = _cfg.get('show_rgbmatrix11x7')
         self._play_sound         = _cfg.get('play_sound') # if True, play sound to indicate calibration
         if self._play_sound:
+
+            from hardware.sound import Sound
+            from hardware.player import Player
+
             self._player = Player.instance()
         else:
             self._player = None

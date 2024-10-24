@@ -68,6 +68,14 @@ libraries.
 KRZOS requires installation of a number of dependencies (support libraries). 
 There is currently no dependency management set up for this project.
 
+* smbus2:       https://pypi.org/project/smbus2/
+* pyyaml:       https://pypi.org/project/PyYAML/
+* pytest:       https://docs.pytest.org/en/stable/getting-started.html
+* rgbmatrix5x5: https://github.com/pimoroni/rgbmatrix5x5-python.git
+
+The original PiconZero library has been included and significantly refactored as
+a Python class, so it is not an external dependency.
+
 
 Status
 ******

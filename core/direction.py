@@ -16,17 +16,32 @@ from enum import Enum
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class Direction(Enum):
-    STOPPED           = (  0, 'stopped',           'stop')
-    AHEAD             = (  1, 'ahead',             'ahed')
-    ASTERN            = (  2, 'astern',            'astn')
-    CLOCKWISE         = (  3, 'clockwise',         'clws')
-    COUNTER_CLOCKWISE = (  4, 'counter-clockwise', 'ccwz')
-    UNKNOWN           = ( 99, 'unknown',           'unkn') # n/a or indeterminate
+    STOPPED           = (  0, 'stopped',           'stop', ' ')
+    AHEAD             = (  1, 'ahead',             'ahed', 'w')
+    ASTERN            = (  2, 'astern',            'astn', 'z')
+    ROTATE_CW         = (  3, 'rotate-cw',         'rtcw', 's')
+    ROTATE_CCW        = (  4, 'rotate-ccw',        'rtcc', 'a')
+    CRAB_PORT         = (  5, 'crab-port',         'crap', 'c')
+    CRAB_STBD         = (  6, 'crab-stbd',         'cras', 'v')
+    DIAGONAL_PORT     = (  7, 'diagonal-port',     'diap', 'd')
+    DIAGONAL_STBD     = (  8, 'diagonal-stbd',     'dias', 'f')
+
+    PIVOT_FWD_CW      = (  9, 'pivot-fwd-cw',      'pfcw', 'p')
+    PIVOT_FWD_CCW     = ( 10, 'pivot-fwd-ccw',     'pfcc', 'o')
+    PIVOT_AFT_CW      = ( 11, 'pivot-aft-cw',      'pacw', 'l')
+    PIVOT_AFT_CCW     = ( 12, 'pivot-aft-ccw',     'pacc', 'k')
+    PIVOT_PORT_CW     = ( 13, 'pivot-port-cw',     'ppcw', 'i')
+    PIVOT_PORT_CCW    = ( 14, 'pivot-port-ccw',    'ppcc', 'u')
+    PIVOT_STBD_CW     = ( 15, 'pivot-stbd-cw',     'pscw', 'j')
+    PIVOT_STBD_CCW    = ( 16, 'pivot-stbd-ccw',    'pscc', 'h')
+
+    UNKNOWN           = ( 99, 'unknown',           'unkn', '?') # n/a or indeterminate
 
     # ignore the first param since it's already set by __new__
-    def __init__(self, num, name, label):
+    def __init__(self, num, name, label, key):
         self._name  = name
         self._label = label
+        self._key   = key
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
     @property
@@ -37,6 +52,11 @@ class Direction(Enum):
     @property
     def label(self):
         return self._label
+
+    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    @property
+    def key(self):
+        return self._key
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
     @staticmethod
@@ -59,5 +79,16 @@ class Direction(Enum):
                 raise TypeError('unable to discern direction for port: {}; stbd: {}'.format(port_velocity, stbd_velocity))
         else:
             return Direction.UNKNOWN
+
+    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    @staticmethod
+    def get_direction_for_key(key):
+        '''
+        NOTE: Not yet implemented for all enums.
+        '''
+        for _direction in Direction:
+            if _direction.key == key:
+                return _direction
+        return Direction.UNKNOWN
 
 #EOF

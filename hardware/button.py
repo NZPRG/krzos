@@ -7,7 +7,7 @@
 #
 # author:   Murray Altheim
 # created:  2024-05-22
-# modified: 2024-05-23
+# modified: 2024-10-23
 #
 
 import sys, time
@@ -18,15 +18,13 @@ except Exception:
     print('This script requires the RPi.GPIO module.\nInstall with: sudo pip3 install RPi.GPIO')
     sys.exit(1)
 
-import ioexpander as io
-
 from core.logger import Logger, Level
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-class PushButton(object):
+class Button(object):
     '''
-    A simple pushbutton that can be configured to either use a GPIO pin or
-    a pin on the IOExpander.
+    A simple button that can be configured to either use a GPIO pin or a pin
+    on the IOExpander as input.
 
     Uses BCM mode, i.e., GPIO numbering, not pin numbers. When using the
     IOExpander the pin is on the IOExpander.
@@ -34,12 +32,13 @@ class PushButton(object):
     This introduces a slight delay on returning a value in order
     to debounce the switch.
 
-    :param config         the application configuration
+    :param config:        the application configuration
+    :param pin:           the optional pin number (overrides config)
     :param level:         the log level
     '''
-    def __init__(self, config, level=Level.INFO):
-        _cfg = config['mros'].get('hardware').get('push_button')
-        self._pin = _cfg.get('pin')
+    def __init__(self, config, pin=None, level=Level.INFO):
+        _cfg = config['mros'].get('hardware').get('button')
+        self._pin = _cfg.get('pin') if pin is None else pin
         self._log = Logger('push-btn:{}'.format(self._pin), level)
         _source = _cfg.get('source') # either 'gpio' or 'ioe'
         if _source == 'gpio':
@@ -49,6 +48,9 @@ class PushButton(object):
             self._ioe = None
             self._log.info('ready: pushbutton on GPIO pin {:d}'.format(self._pin))
         elif _source == 'ioe':
+
+            import ioexpander as io
+
             _i2c_address = _cfg.get('i2c_address')
             self._ioe = io.IOE(i2c_addr=_i2c_address)
             self._ioe.set_mode(self._pin, io.IN_PU)
