@@ -46,6 +46,10 @@ mros:
         radar:                                             # RCWL-0516 Microwave Radar Motion Sensor
             i2c_address:                   0x19            # I²C address for the device
             pin:                              9            # the IO Expander pin used for the analog pot
+        paa5100je:                                         # PAA5100JE Optical Flow Sensor
+            rotation:                       180            # permitted values: 0, 90, 180 or 270 
+            x_trim:                         1.0            # percentage X trim (as a multiplier)
+            y_trim:                         0.92           # percentage Y trim (as a multiplier)
         rotated:                                           # IR sensor over SAFT servo to determine if rotated
             i2c_address:                   0x18            # I2C address of aft IO Expander
             pin:                              9            # the IO Expander pin used for the analog pot
@@ -54,7 +58,7 @@ mros:
 #           i2c_address:                   0x18            # I²C address for the device
 #           adc_pin:                         10            # the IO Expander pin used for the analog pot
         digital_potentiometer:                             # IO Expander-based RGB Potentiometer board
-            i2c_address:                   0x0E            # I²C address for the device
+            i2c_address:                   0x0C            # I²C address for the device
             brightness:                     1.0            # brightness of the RGB LED (0.0-1.0)
             pin_red:                          1            # red pin
             pin_green:                        7            # green pin
@@ -87,7 +91,7 @@ mros:
             adjust_trim:                  False            # if true, use pot for trim, otherwise used fixed value
             pitch_trim:                    0.0             # pitch trim for level
             roll_trim:                     4.0             # roll trim for level
-            heading_trim:                  0.0             # heading trim adjustment to set north (was 0.15)
+            heading_trim:                 -1.51            # heading trim adjustment (in radians) to set north (was 0.15 on MR01)
             queue_length:                   100            # length of heading data queue
             stability_threshold:              5.0          # max standard deviation to determine stability
             cardinal_tolerance:               0.0698132    # tolerance to cardinal points (4° in radians)

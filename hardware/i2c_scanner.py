@@ -86,13 +86,6 @@ class I2CScanner(object):
         return False
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-    def normalise(self, address):
-        '''
-        Uppercases the numerical part of the hex string.
-        '''
-        return '0x{}'.format(address[2:].upper())
-
-    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
     def has_hex_address(self, addresses):
         '''
         Performs the address scan (if necessary) and returns true if a device
@@ -101,10 +94,17 @@ class I2CScanner(object):
         '''
         self._scan_addresses()
         for address in addresses:
-            address = self.normalise(address)
+#           address = self.normalise(address)
             if address in self._hex_list:
                 return True
         return False
+
+    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    def normalise(self, address):
+        '''
+        Uppercases the numerical part of the hex string.
+        '''
+        return '0x{}'.format(address[2:].upper())
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
     def _scan_addresses(self):

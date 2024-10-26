@@ -88,6 +88,19 @@ then:
     with:         sudo apt install python3-smbus2
 * rgbmatrix5x5: https://github.com/pimoroni/rgbmatrix5x5-python.git
     with:         sudo pip3 install rgbmatrix5x5 --break-system-packages
+* matrix11x7:   https://github.com/pimoroni/matrix11x7-python/tree/master
+    with:         sudo pip3 install matrix11x7 --break-system-packages
+* icm20948:     https://pypi.org/project/icm20948/
+    with:         sudo pip3 install icm20948 --break-system-packages
+* IO Expander:  https://pypi.org/project/pimoroni-ioexpander/  
+    with:         sudo pip3 install pimoroni-ioexpander --break-system-packages
+* gpiodevice:   https://pypi.org/project/gpiodevice/
+    with:         sudo pip3 install gpiodevice --break-system-packages
+* PAA5100JE:    https://github.com/pimoroni/pmw3901-python
+    with:         sudo pip3 install pmw3901 --break-system-packages
+
+The pimoroni-iopxpander library supports the Pimoroni Breakout Garden 
+IO Expander as well as the Encoder and Potentiometer.
 
 The original PiconZero library has been included and significantly refactored as
 a Python class, so it is not an external dependency.

@@ -17,23 +17,51 @@ init()
 
 from core.cardinal import Cardinal
 from core.convert import Convert
-from core.logger import Logger, Level
 from core.orientation import Orientation
+from core.logger import Logger, Level
+from hardware.i2c_scanner import I2CScanner
 from core.config_loader import ConfigLoader
 from hardware.icm20948 import Icm20948
+from hardware.rgbmatrix import RgbMatrix
+from hardware.digital_pot import DigitalPotentiometer # for calibration only
 
 # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+HALF_PI = π / 2.0
 
 _icm20948 = None
 _log = Logger('test', Level.INFO)
 _cardinal = Cardinal.NORTH
 _threshold = 4
-HALF_PI = π / 2.0
+_digital_pot = None
 
 try:
     # read YAML configuration
     _config = ConfigLoader(Level.INFO).configure()
-    _icm20948 = Icm20948(_config, None, Level.INFO)
+
+    _i2c_scanner = I2CScanner(_config, level=Level.WARN)
+    if not _i2c_scanner.has_address([0x74, 0x77]):
+        _log.warning('test ignored: no rgbmatrix displays found.')
+        sys.exit(1) 
+    _addresses = _i2c_scanner.get_int_addresses()
+    _enable_port = 0x77 in _addresses
+    _enable_stbd = 0x74 in _addresses
+ 
+    _rgbmatrix = RgbMatrix(_enable_port, _enable_stbd, Level.INFO)
+    _log.info('starting test...')
+#   _port_rgbmatrix = _rgbmatrix.get_rgbmatrix(Orientation.PORT)
+#   _stbd_rgbmatrix = _rgbmatrix.get_rgbmatrix(Orientation.STBD)
+
+    if _i2c_scanner.has_address([0x0C]):
+        _digital_pot = DigitalPotentiometer(_config, i2c_address=0x0C, level=Level.INFO)
+    elif _i2c_scanner.has_address([0x0E]):
+        _digital_pot = DigitalPotentiometer(_config, i2c_address=0x0E, level=Level.INFO)
+    if _digital_pot:
+        _digital_pot.set_output_range(-90.0, 90.0)
+
+#   _rgbmatrix = None
+
+    _icm20948 = Icm20948(_config, rgbmatrix=_rgbmatrix, level=Level.INFO)
     _icm20948._show_console = True
     if not _icm20948.is_calibrated:
         _icm20948.calibrate()

@@ -70,7 +70,7 @@ class DigitalPotentiometer(Component):
         self._out_min    = 0.0
         self._out_max    = 0.0
         # now configure IO Expander
-        self._log.info("configuring IO Expander…")
+        self._log.info('configuring digital potentiometer at 0x{:02X}…'.format(self._i2c_addr))
         try:
             self._ioe = io.IOE(i2c_addr=self._i2c_addr)
             self._ioe.set_mode(self._pot_enc_a, io.PIN_MODE_PP)
@@ -92,7 +92,6 @@ class DigitalPotentiometer(Component):
             raise DeviceNotFound("unable to initialise potentiometer: no device found.")
         except Exception as e:
             raise DeviceNotFound("{} error initialising potentiometer: {}".format(type(e), traceback.format_exc()))
-
         self._log.info("running LED with {} brightness steps.".format(int(self._period * self._brightness)))
         self._log.info("ready.")
 

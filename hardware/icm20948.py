@@ -25,6 +25,9 @@ from rgbmatrix5x5 import RGBMatrix5x5
 from matrix11x7 import Matrix11x7
 from matrix11x7.fonts import font3x5, font5x5, font5x7, font5x7smoothed
 
+import core.globals as globals
+globals.init()
+
 from core.cardinal import Cardinal
 from core.convert import Convert
 from core.component import Component
@@ -34,10 +37,10 @@ from core.rate import Rate
 from core.ranger import Ranger
 from hardware.rgbmatrix import RgbMatrix, DisplayType
 
-IN_MIN  = 0.0      # minimum analog value from IO Expander
-IN_MAX  = 3.3      # maximum analog value from IO Expander
-OUT_MIN = -1.0 * π # minimum scaled output value
-OUT_MAX = π        # maximum scaled output value
+IN_MIN  = 0.0       # minimum analog value from IO Expander
+IN_MAX  = 3.3       # maximum analog value from IO Expander
+OUT_MIN = -1.0 * π / 10.0  # minimum scaled output value
+OUT_MAX = π / 10.0         # maximum scaled output value
 HALF_PI = π / 2.0
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -75,25 +78,36 @@ class Icm20948(Component):
         self._show_rgbmatrix5x5  = _cfg.get('show_rgbmatrix5x5')
         self._show_rgbmatrix11x7 = _cfg.get('show_rgbmatrix11x7')
         self._play_sound         = _cfg.get('play_sound') # if True, play sound to indicate calibration
+        self._player             = None
         if self._play_sound:
+            try:
+                from hardware.sound import Sound
+                from hardware.player import Player
 
-            from hardware.sound import Sound
-            from hardware.player import Player
-
-            self._player = Player.instance()
-        else:
-            self._player = None
+                self._player = Player.instance()
+            except Exception:
+                pass
         # set up trim control ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._pitch_trim = _cfg.get('pitch_trim') # 0.0
         self._roll_trim  = _cfg.get('roll_trim') # 4.0
-        self._trim = 0.0
-        if not self._adjust_trim:
-            # use fixed value
-            self._trim = _cfg.get('heading_trim')
+        # use fixed heading trim value
+        self._fixed_heading_trim = _cfg.get('heading_trim')
+        self._log.info(Fore.GREEN + 'heading trim: {:.2f}'.format(self._fixed_heading_trim))
+        self._heading_trim = self._fixed_heading_trim # initial value if adjusting
         self._digital_pot = None
+        self._trim_adjust = 0.0
         if self._adjust_trim:
+            _component_registry = globals.get('component-registry')
             # configure potentiometer ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-            self._digital_pot = self._component_registry.get('digital-pot-0x0E')
+            self._digital_pot_0x0E = _component_registry.get('digital-pot-0x0E')
+            if self._digital_pot_0x0E:
+                self._digital_pot = self._digital_pot_0x0E
+                self._log.info('using digital pot at: ' + Fore.GREEN + '0x0E')
+            else:
+                self._digital_pot_0x0C = _component_registry.get('digital-pot-0x0C')
+                if self._digital_pot_0x0C:
+                    self._digital_pot = self._digital_pot_0x0C
+                    self._log.info('using digital pot at: ' + Fore.GREEN + '0x0C')
             if self._digital_pot:
                 self._digital_pot.set_output_range(OUT_MIN, OUT_MAX)
         # add numeric display ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -106,9 +120,14 @@ class Icm20948(Component):
         self._cardinal_tolerance = _cfg.get('cardinal_tolerance') # tolerance to cardinal points (in radians)
         self._log.info('cardinal tolerance: {:.8f}'.format(self._cardinal_tolerance))
         # general orientation ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._X = 0
+        # orientation of Pimoroni board mounted vertically, Y along front-rear axis of robot
+#       self._X = 0
+#       self._Y = 1
+#       self._Z = 2
+        # orientation of Adafruit board mounted horizontally, Z vertical, X along front-rear axis of robot
+        self._X = 2
         self._Y = 1
-        self._Z = 2
+        self._Z = 0
         # The two axes which relate to heading depend on orientation of the
         # sensor, think Left & Right, Forwards and Back, ignoring Up and Down.
         # When the sensor is sitting vertically upright in a Breakout Garden
@@ -157,13 +176,13 @@ class Icm20948(Component):
         '''
         return self._is_calibrated
 
-    def set_is_calibrated(self, calibrated):
-        '''
-        Externally set the value of the state of calibration of the ICM20948.
-        This is done by processes that utilise the ICM20948 but themselves
-        determine the calibration state.
-        '''
-        self._is_calibrated = calibrated
+#   def set_is_calibrated(self, calibrated):
+#       '''
+#       Externally set the value of the state of calibration of the ICM20948.
+#       This is done by processes that utilise the ICM20948 but themselves
+#       determine the calibration state.
+#       '''
+#       self._is_calibrated = calibrated
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
     def is_cardinal_aligned(self, cardinal=None):
@@ -176,10 +195,10 @@ class Icm20948(Component):
             return False
         _angle = self._mean_heading_radians
         _degrees = int(Convert.to_degrees(_angle))
-        if cardinal is None:
-            print('angle: {:4.2f}r / {:d}°; cardinal: not provided'.format(_angle, _degrees))
-        else:
-            print('angle: {:4.2f}r / {:d}°; cardinal: {:4.2f}'.format(_angle, _degrees, cardinal.radians))
+#       if cardinal is None:
+#           print('angle: {:4.2f}r / {:d}°; cardinal: not provided'.format(_angle, _degrees))
+#       else:
+#           print('angle: {:4.2f}r / {:d}°; cardinal: {:4.2f}'.format(_angle, _degrees, cardinal.radians))
         if (( cardinal is None or cardinal is Cardinal.NORTH )
                     and math.isclose(_angle, Cardinal.NORTH.radians, abs_tol=self._cardinal_tolerance)):
             return True
@@ -354,31 +373,34 @@ class Icm20948(Component):
         if self._play_sound:
             self._player.play(Sound.CHATTER_2)
         self._log.info(Fore.WHITE + Style.BRIGHT + '\n\n    calibrate by rotating sensor through a horizontal 360° motion…\n')
-        if self._show_rgbmatrix5x5 and self._rgbmatrix5x5:
-            self._rgbmatrix.set_display_type(DisplayType.RANDOM)
-            self._rgbmatrix.enable()
-            self._rgbmatrix.set_random_delay_sec(_ranger.convert(180.0)) # speeds up random display as stdev shrinks
+#       if self._show_rgbmatrix5x5 and self._rgbmatrix5x5:
+#           self._rgbmatrix.set_display_type(DisplayType.RANDOM)
+#           self._rgbmatrix.enable()
+#           self._rgbmatrix.set_random_delay_sec(_ranger.convert(180.0)) # speeds up random display as stdev shrinks
         while True:
             _count = next(_counter)
             if self.is_calibrated or _count > _limit:
                 break
             try:
-                _heading = self._read_heading(self._amin, self._amax)
+                _heading = self._read_heading(self._amin, self._amax, calibrating=True)
                 r, g, b = [int(c * 255.0) for c in hsv_to_rgb(_heading / 360.0, 1.0, 1.0)]
                 if self.calibration_check(_heading):
                     break
-                if self._rgbmatrix5x5 and _count % 10 == 0:
-                    self._rgbmatrix.set_random_delay_sec(_ranger.convert(self._stdev)) # speeds up random display as stdev shrinks
-                    self._log.info(Fore.CYAN + '[{:d}] trying to calibrate… stdev: {:4.2f}; '.format(_count, self._stdev) + Style.DIM + '(calibrated? {}; over limit? {})'.format(
+                if _count % 5 == 0:
+                    if self._rgbmatrix5x5:
+                        self._rgbmatrix.set_random_delay_sec(_ranger.convert(self._stdev)) # speeds up random display as stdev shrinks
+                    self._log.info(Fore.CYAN + '[{:d}] trying to calibrate… stdev: {:4.2f} < {:4.2f}?; '.format(_count, self._stdev, self._stability_threshold) 
+                            + Style.DIM + '(calibrated? {}; over limit? {})'.format(
                             self.is_calibrated, _count > _limit))
             except Exception as e:
                 self._log.error('{} encountered, exiting: {}\n{}'.format(type(e), e, traceback.format_exc()))
+#           self._log.info(Fore.BLACK + '[{}] calibrating…'.format(_count))
             _rate.wait()
 
         _elapsed_ms = round(( dt.now() - _start_time ).total_seconds() * 1000.0)
-        if self._show_rgbmatrix5x5 and self._rgbmatrix5x5:
-            self._rgbmatrix.set_display_type(DisplayType.DARK)
-            self._rgbmatrix.disable()
+#       if self._show_rgbmatrix5x5 and self._rgbmatrix5x5:
+#           self._rgbmatrix.set_display_type(DisplayType.DARK)
+#           self._rgbmatrix.disable()
         if self.is_calibrated:
             self._log.info(Fore.GREEN + 'IMU calibrated: elapsed: {:d}ms'.format(_elapsed_ms))
             if self._play_sound:
@@ -412,7 +434,8 @@ class Icm20948(Component):
         self._stdev = statistics.stdev(self._queue)
 #       self._log.info('added heading of {:4.2f} to queue of {:d} values in queue with stdev of: {:5.3f}.'.format(heading, self._heading_count, self._stdev))
         if self._stdev < self._stability_threshold: # stable? then permanently flag as calibrated
-            self.set_is_calibrated(True)
+#           self.set_is_calibrated(True)
+            self._is_calibrated = True
         return self._is_calibrated
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -429,11 +452,7 @@ class Icm20948(Component):
         _rate = Rate(self._poll_rate_hz, Level.ERROR)
         if self._amin is None or self._amax is None:
             raise Exception('compass not calibrated yet, call calibrate() first.')
-        while enabled():
-            if self._adjust_trim:
-                self._trim = self._digital_pot.get_scaled_value(False)
-                if self._show_rgbmatrix5x5:
-                    self._digital_pot.set_rgb(self._digital_pot.value)
+        while enabled:
             self.poll()
             if callback:
                 callback()
@@ -445,17 +464,22 @@ class Icm20948(Component):
         An individual call to the sensor. This is called in a loop by scan(),
         but can be called independently. This sets heading, pitch and roll.
 
+        We have a fixed heading trim value (in radians). If the digital pot
+        is available, its value is added to the heading trim.
+
         Note: calling this method will fail if not previously calibrated.
         '''
         if not self.is_calibrated:
             raise Exception('IMU is not calibrated.')
         try:
+
             self._heading = self._read_heading(self._amin, self._amax)
             # add to queue to calculate mean heading
             self._queue.append(self._heading)
             self._stdev = statistics.stdev(self._queue)
             if self._stdev < self._stability_threshold: # stable? then permanently flag as calibrated
-                self.set_is_calibrated(True)
+#               self.set_is_calibrated(True)
+                self._is_calibrated = True
             self._mean_heading = statistics.mean(self._queue)
             self._mean_heading_radians = math.radians(self._mean_heading)
             if next(self._counter) % self._display_rate == 0: # display every 10th set of values
@@ -467,8 +491,8 @@ class Icm20948(Component):
                     else:
                         _style = Style.NORMAL
                     self._log.info(_style + "heading: {:3d}° / mean: {:3d}°;".format(self._heading, int(self._mean_heading))
-                            + Style.NORMAL + " stdev: {:.2f}; trim: {:.2f}; color: #{:02X}{:02X}{:02X}".format(
-                                self._stdev, self._trim, r, g, b))
+                            + Style.NORMAL + " stdev: {:.2f}; trim: fx={:.2f} / ad={:.2f} / hd={:.2f}; color: #{:02X}{:02X}{:02X}".format(
+                                self._stdev, self._fixed_heading_trim, self._trim_adjust, self._heading_trim, r, g, b))
 #                   if self._include_accel_gyro:
 #                       self._log.info(Fore.WHITE + "accel: {:5.2f}, {:5.2f}, {:5.2f}; gyro: {:5.2f}, {:5.2f}, {:5.2f}".format(*self._accel, *self._gyro))
                 if self._show_rgbmatrix5x5 and self._rgbmatrix5x5:
@@ -500,7 +524,7 @@ class Icm20948(Component):
             return None
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-    def _read_heading(self, amin, amax):
+    def _read_heading(self, amin, amax, calibrating=False):
         '''
         Does the work of obtaining the heading value in degrees.
         '''
@@ -535,8 +559,21 @@ class Icm20948(Component):
         # convert from Gauss values in the appropriate 2 axis to a heading
         # in Radians using trig. Note this does not compensate for tilt.
         self._radians = math.atan2(mag[self._axes[0]],mag[self._axes[1]])
-        # add potentiometer trim (in radians, ±1𝛑)
-        self._radians += self._trim
+        # if digital pot is available we alter the heading trim accordingly
+        if calibrating:
+            # adjust nothing
+            pass
+        elif self._adjust_trim and self._digital_pot:
+            self._trim_adjust = self._digital_pot.get_scaled_value(False)
+            self._heading_trim = self._fixed_heading_trim + self._trim_adjust
+            if self._show_rgbmatrix5x5:
+                self._digital_pot.set_rgb(self._digital_pot.value)
+            # add potentiometer trim (in radians, ±1𝛑)
+            self._radians += self._heading_trim
+            self._log.info(Fore.WHITE + 'trim: {:5.2f}'.format(self._heading_trim))
+        else:
+            self._radians += self._fixed_heading_trim
+#           self._log.info(Style.DIM + 'trim: {:5.2f}'.format(self._heading_trim))
          # if heading is negative, convert to positive, 2 x pi is a full circle in Radians
         if self._radians < 0:
             self._radians += 2 * math.pi
