@@ -58,6 +58,7 @@ class NearOpticalFlowSensor(Component):
         self._y      = 0.0
         self._tx     = 0.0
         self._ty     = 0.0
+        self._spmm   = 6.43 # steps per millimeter, calibrated on a bamboo cutting board
         self._log.info('ready.')
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -84,6 +85,20 @@ class NearOpticalFlowSensor(Component):
         '''
         self._poll()
         return int(self._tx), int(self._ty)
+
+    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    def millimeters(self):
+        '''
+        Return the absolute (cumulative) positional change in millimeters
+        since the previous poll.
+
+        Note: This was calibrated on a bamboo cutting board, and on other
+        surfaces the value will likely vary.
+        '''
+        _abs_x, _abs_y = int(self._tx), int(self._ty)
+        _dist_x = int(_abs_x / self._spmm)
+        _dist_y = int(_abs_y / self._spmm)
+        return _dist_x, _dist_y
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
     def y_variance(self):
