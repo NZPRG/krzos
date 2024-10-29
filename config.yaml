@@ -79,7 +79,7 @@ mros:
             roll_trim:                        0.00         # trim adjustment on roll
             euler_heading_trim:              90.00         # trim adjustment on Euler heading
             quat_heading_trim:               90.00         # trim adjustment on Quaternion heading
-            play_sound:                    True            # if True, play sound to indicate calibration
+            play_sound:                   False            # if True, play sound to indicate calibration
         icm20948:
             i2c_address:                   0x69            # I2C address (default 0x68)
             poll_rate_hz:                   150            # how often the IMU is polled
@@ -96,7 +96,8 @@ mros:
             stability_threshold:              5.0          # max standard deviation to determine stability
             cardinal_tolerance:               0.0698132    # tolerance to cardinal points (4° in radians)
 #           cardinal_tolerance:               0.0523599    # tolerance to cardinal points (3° in radians)
-            include_accel_gyro:            True            # if true, also poll accelerometer and gyroscope data
+            include_accel_gyro:            True            # if true, poll heading data
+            include_heading:               True            # if true, poll accelerometer and gyroscope data
             play_sound:                   False            # if True, play sound to indicate calibration
         irq_clock:
             pin:                             18            # GPIO pin connected to an external clock source

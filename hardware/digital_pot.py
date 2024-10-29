@@ -12,6 +12,7 @@
 
 import sys, colorsys, traceback
 import ioexpander as io
+from math import isclose
 from colorama import init, Fore, Style
 init()
 
@@ -165,17 +166,27 @@ class DigitalPotentiometer(Component):
             self._log.debug('value: {:<5.2f}; rgb: {},{},{}'.format(value, r, g, b))
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-    def get_scaled_value(self, update_led=True):
+    def get_scaled_value(self, update_led=True, absolute_tolerance=None):
         '''
         Return a scaled value while also updating the RGB LED if the
-        argument is True (the default).
+        argument is True (the default). If the absolute_tolerance is
+        set, it's used to determine closeness of the scaled value to
+        zero, in which case 0.0 is returned and the RGB LED is black.
         '''
         if self.disabled:
             return 0.0
         _value = self.value
+        _scaled_value = self.scale_value(_value) # as float
+        _is_zero = _scaled_value == 0 or ( absolute_tolerance and isclose(_scaled_value, 0.0, abs_tol=absolute_tolerance))
         if update_led:
-            self.set_rgb(_value)
-        return self.scale_value(_value) # as float
+            if _is_zero:
+                self.set_black()
+            else:
+                self.set_rgb(_value)
+        if _is_zero:
+            return 0.0
+        else:
+            return _scaled_value
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
     def scale_value(self, value):

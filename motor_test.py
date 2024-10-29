@@ -27,9 +27,11 @@ from hardware.motor_controller import MotorController
 _log = Logger('motor-test', Level.INFO)
 
 FUNCTIONAL_TEST = False
+ENCODER_TEST    = False
+MOVEMENT_TEST   = True
 CRAB_TEST       = False
 ROTATE_TEST     = False
-PIVOT_TEST      = True
+PIVOT_TEST      = False
 
 _motor_controller = None
 try:
@@ -65,6 +67,38 @@ try:
         _motor_controller.set_direction(Direction.STOPPED)
         time.sleep(0.33)
 
+    if ENCODER_TEST:
+        _rotation = 0.98
+        _orientations = [ Orientation.PFWD ]
+        for _orientation in _orientations:
+            if _orientation.side is Orientation.PORT:
+                print(Fore.RED   + 'set motor speed for {} motor(s).'.format(_orientation) + Style.RESET_ALL)
+            else:
+                print(Fore.GREEN + 'set motor speed for {} motor(s).'.format(_orientation) + Style.RESET_ALL)
+            _motor_controller.set_motor_speed(_orientation, 50)
+            while True:
+                time.sleep(1)
+#           time.sleep(5 * _rotation)
+#           _motor_controller.set_motor_speed(_orientation, 0)
+#           time.sleep(1)
+#           _motor_controller.set_motor_speed(_orientation, -20)
+#           time.sleep(3)
+            _motor_controller.set_motor_speed(_orientation, 0)
+            time.sleep(0.33)
+
+    if MOVEMENT_TEST:
+#       _directions = [ Direction.ASTERN ]
+        _directions = [ Direction.AHEAD, Direction.ASTERN ]
+        for _direction in _directions:
+            print('set direction to {}. ------------------------------ '.format(_direction))
+            _motor_controller.set_direction(_direction, 40)
+            time.sleep(9)
+            print('braking... ---------------------------------------- ')
+            _motor_controller.brake()
+            time.sleep(2.0)
+            _motor_controller.reset()
+            print('end of cycle. ------------------------------------- ')
+
     if CRAB_TEST:
         _directions = [ Direction.CRAB_PORT, Direction.CRAB_STBD ]
         for _direction in _directions:
@@ -98,6 +132,7 @@ except Exception as e:
      _log.error('{} encountered, exiting: {}\n{}'.format(type(e), e, traceback.format_exc()))
 finally:
     if _motor_controller:
+        _motor_controller.stop()
         _motor_controller.close()
 
 #EOF

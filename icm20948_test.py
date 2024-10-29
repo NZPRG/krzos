@@ -27,6 +27,10 @@ from hardware.digital_pot import DigitalPotentiometer # for calibration only
 
 # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
+CALIBRATE       = True
+HEADING_TEST    = False
+ACCEL_GYRO_TEST = True
+
 HALF_PI = π / 2.0
 
 _icm20948 = None
@@ -63,8 +67,12 @@ try:
 
     _icm20948 = Icm20948(_config, rgbmatrix=_rgbmatrix, level=Level.INFO)
     _icm20948._show_console = True
-    if not _icm20948.is_calibrated:
-        _icm20948.calibrate()
+    _icm20948.include_accel_gyro(ACCEL_GYRO_TEST)
+    if CALIBRATE:
+        if not _icm20948.is_calibrated:
+            _icm20948.calibrate()
+    _icm20948.include_heading(HEADING_TEST)
+    _icm20948.set_poll_rate_hz(2)
 
     # just scan continually...
     _icm20948.scan(enabled=True, callback=None)

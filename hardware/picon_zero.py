@@ -111,7 +111,7 @@ class PiconZero(object):
         Value must be in range -128 - +127
         Values of -127, -128, +127 are treated as always ON,, no PWM
         '''
-        self._log.info(Fore.GREEN + 'set motor {} to {}.'.format(motor, value))
+#       self._log.info(Fore.GREEN + 'set motor {} to {}.'.format(motor, value))
         if (motor>=0 and motor<=1 and value>=-128 and value<128):
             for _ in range(PiconZero.RETRIES):
                 try:

@@ -56,6 +56,7 @@ class MotorController(Component):
         self._loop_delay_sec = 1 / self._loop_freq_hz
         self._rate           = Rate(self._loop_freq_hz, Level.ERROR)
         self._log.info('loop frequency:\t{}Hz ({:4.2f}s)'.format(self._loop_freq_hz, self._loop_delay_sec))
+        self._verbose        = False
         # motor controller ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._fwd_pz = PiconZero(orientation=Orientation.FWD)
         self._fwd_pz.initialise()
@@ -127,8 +128,20 @@ class MotorController(Component):
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
     def stop(self):
+        self._log.info('stop.')
         self._fwd_pz.stop()
         self._aft_pz.stop()
+
+    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    def brake(self):
+        _brake_scale = 80
+        for _motor in self._all_motors:
+            _motor.brake()
+
+    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    def reset(self):
+        for _motor in self._all_motors:
+            _motor.reset()
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
     def set_direction(self, direction, speed=0):
@@ -231,27 +244,35 @@ class MotorController(Component):
         if not self.enabled:
             self._log.error('motor controller not enabled.')
             speed = 0.0
-        if not isinstance(speed, int):
+        if isinstance(speed, float):
+            speed = int(speed)
+        elif not isinstance(speed, int):
             raise ValueError('expected target speed as int, not {}'.format(type(speed)))
         if orientation is Orientation.PORT:
-            self._log.info(Fore.RED + 'set {} motor speed: {:5.2f}'.format(orientation.name, speed))
+            if self._verbose:
+                self._log.info(Fore.RED + 'set {} motor speed: {:5.2f}'.format(orientation.name, speed))
             self._pfwd_motor.set_speed(speed)
             self._paft_motor.set_speed(speed)
         elif orientation is Orientation.STBD:
-            self._log.info(Fore.GREEN + 'set {} motor speed: {:5.2f}'.format(orientation.name, speed))
+            if self._verbose:
+                self._log.info(Fore.GREEN + 'set {} motor speed: {:5.2f}'.format(orientation.name, speed))
             self._sfwd_motor.set_speed(speed)
             self._saft_motor.set_speed(speed)
         elif orientation is Orientation.PFWD:
-            self._log.info('set {} motor speed: {:5.2f}'.format(orientation.name, speed))
+            if self._verbose:
+                self._log.info('set {} motor speed: {:5.2f}'.format(orientation.name, speed))
             self._pfwd_motor.set_speed(speed)
         elif orientation is Orientation.SFWD:
-            self._log.info('set {} motor speed: {:5.2f}'.format(orientation.name, speed))
+            if self._verbose:
+                self._log.info('set {} motor speed: {:5.2f}'.format(orientation.name, speed))
             self._sfwd_motor.set_speed(speed)
         elif orientation is Orientation.PAFT:
-            self._log.info('set {} motor speed: {:5.2f}'.format(orientation.name, speed))
+            if self._verbose:
+                self._log.info('set {} motor speed: {:5.2f}'.format(orientation.name, speed))
             self._paft_motor.set_speed(speed)
         elif orientation is Orientation.SAFT:
-            self._log.info('set {} motor speed: {:5.2f}'.format(orientation.name, speed))
+            if self._verbose:
+                self._log.info('set {} motor speed: {:5.2f}'.format(orientation.name, speed))
             self._saft_motor.set_speed(speed)
         else:
             self._log.warning('expected a motor orientation, not {}'.format(orientation))
@@ -274,6 +295,10 @@ class MotorController(Component):
         '''
         if not self.closed:
             Component.close(self) # calls disable
+            self._pfwd_motor.stop()
+            self._sfwd_motor.stop()
+            self._paft_motor.stop()
+            self._saft_motor.stop()
             self._fwd_pz.close()
             self._aft_pz.close()
             self._log.info('motor controller closed.')

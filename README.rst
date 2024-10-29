@@ -92,12 +92,25 @@ then:
     with:         sudo pip3 install matrix11x7 --break-system-packages
 * icm20948:     https://pypi.org/project/icm20948/
     with:         sudo pip3 install icm20948 --break-system-packages
+* pyquaternion: https://pypi.org/project/pyquaternion/
+*   with:         sudo pip3 install pyquaternion --break-system-packages
 * IO Expander:  https://pypi.org/project/pimoroni-ioexpander/  
     with:         sudo pip3 install pimoroni-ioexpander --break-system-packages
 * gpiodevice:   https://pypi.org/project/gpiodevice/
     with:         sudo pip3 install gpiodevice --break-system-packages
 * PAA5100JE:    https://github.com/pimoroni/pmw3901-python
     with:         sudo pip3 install pmw3901 --break-system-packages
+
+for the VL53L5CX and 1.3" TFT display (used for its demo):
+
+* VL53L5CX:     https://github.com/pimoroni/vl53l5cx-python
+    with:         sudo pip3 install vl53l5cx-ctypes --break-system-packages
+* ST7789:
+    with:        sudo pip3 install st7789 --break-system-packages
+* Pyhon Image Library (PIL)
+    with:        sudo pip3 install --upgrade Pillow --break-system-packages
+* matplotlib
+    with:        sudo pip3 install matplotlib --break-system-packages
 
 The pimoroni-iopxpander library supports the Pimoroni Breakout Garden 
 IO Expander as well as the Encoder and Potentiometer.
