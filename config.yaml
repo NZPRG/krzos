@@ -65,7 +65,7 @@ mros:
             pin_blue:                         2            # blue pin
         button:                                            # GPIO or IO Expander-based simple button or switch
             i2c_address:                   0x18            # I2C address of the IO Expander
-            source:                       'gpio'           # either 'gpio' or 'ioe'
+            impl:                     'gpiozero'           # either 'gpio' or 'ioe' or 'gpiozero'
             pin:                             18            # the GPIO or IO Expander pin used
         ina260:
             i2c_address:                   0x41            # I2C address (default 0x40)

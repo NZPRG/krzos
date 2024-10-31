@@ -35,8 +35,8 @@ def test_pushbutton():
 
         print('begin')
 
-        _pin = 25
         _config = ConfigLoader(Level.INFO).configure()
+        _pin = 23
         _btn = Button(_config, pin=_pin, level=Level.INFO)
 
         _old_value = None

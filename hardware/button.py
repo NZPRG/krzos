@@ -10,13 +10,7 @@
 # modified: 2024-10-23
 #
 
-import sys, time
-
-try:
-    import RPi.GPIO as GPIO
-except Exception:
-    print('This script requires the RPi.GPIO module.\nInstall with: sudo pip3 install RPi.GPIO')
-    sys.exit(1)
+import sys, traceback, time
 
 from core.logger import Logger, Level
 
@@ -34,20 +28,27 @@ class Button(object):
 
     :param config:        the application configuration
     :param pin:           the optional pin number (overrides config)
+    :param source:        the optional source
     :param level:         the log level
     '''
-    def __init__(self, config, pin=None, level=Level.INFO):
+    def __init__(self, config, pin=None, impl=None, level=Level.INFO):
         _cfg = config['mros'].get('hardware').get('button')
         self._pin = _cfg.get('pin') if pin is None else pin
-        self._log = Logger('push-btn:{}'.format(self._pin), level)
-        _source = _cfg.get('source') # either 'gpio' or 'ioe'
-        if _source == 'gpio':
+        self._log = Logger('button:{}'.format(self._pin), level)
+        self._impl = impl if impl is not None else  _cfg.get('impl') # either 'gpio' or 'ioe' or 'gpiozero'
+        if self._impl == 'gpio':
+
+            import RPi.GPIO as GPIO
+
             GPIO.setwarnings(False)
+            GPIO.cleanup()
             GPIO.setmode(GPIO.BCM)
             GPIO.setup(self._pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+#           GPIO.setup(self._pin, GPIO.IN, pull_up_down=GPIO.PUD_OFF)
             self._ioe = None
             self._log.info('ready: pushbutton on GPIO pin {:d}'.format(self._pin))
-        elif _source == 'ioe':
+
+        elif self._impl == 'ioe':
 
             import ioexpander as io
 
@@ -55,8 +56,46 @@ class Button(object):
             self._ioe = io.IOE(i2c_addr=_i2c_address)
             self._ioe.set_mode(self._pin, io.IN_PU)
             self._log.info('ready: pushbutton on IO Expander pin {:d}'.format(self._pin))
+        elif self._impl == 'gpiozero':
+
+            from gpiozero import Button
+
+            self.button = Button(self._pin)  # create a Button object for the specified pin
+            self._callbacks = []             # list to store callback functions
+            self.button.when_pressed = self._button_pressed  # set the internal callback
+            self._log.info('ready: pushbutton on GPIO pin {:d} using gpiozero.'.format(self._pin))
+
         else:
-            raise Exception('unrecognised source: {}'.format(_source))
+            raise Exception('unrecognised source: {}'.format(self._impl))
+
+    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    def add_callback(self, callback_method, bouncetime_ms=300):
+        '''
+        Set up a callback on the button's pin. This only works with the
+        GPIO or gpiozero implementations. The 'bouncetime_ms ' argument
+        is only used in the former.
+        '''
+        if not callable(callback_method):
+            raise TypeError('provided callback was not callable.')
+        if self._impl == 'gpio':
+            try:
+                # set up the event detection on pin
+                GPIO.add_event_detect(self._pin, GPIO.FALLING, callback=callback_method, bouncetime=bouncetime_ms)
+                self._log.info('added callback on GPIO pin {:d}'.format(self._pin))
+            except Exception as e:
+                self._log.error('{} error adding callback: {}\n{}'.format(type(e), e, traceback.format_exc()))
+        elif self._impl == 'gpiozero':
+              self._callbacks.append(callback_method)
+        else:
+            raise Exception('{} implementation does not support callbacks.'.format(self._impl))
+
+    def _button_pressed(self):
+        '''
+        Internal method called when the button is pressed.
+        '''
+        self._log.info("button pressed!")
+        for callback in self._callbacks:  # execute registered callbacks
+            callback()
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
     @property

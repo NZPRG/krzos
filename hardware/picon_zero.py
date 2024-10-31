@@ -121,27 +121,27 @@ class PiconZero(object):
                     self._log.error("Error in set_motor(): {}; retrying…".format(e))
 
     def forward(self, speed):
-        self._log.info('🍏 forward.')
+        self._log.info('forward.')
         self.set_motor(0, speed)
         self.set_motor(1, speed)
 
     def reverse(self, speed):
-        self._log.info('🍏 reverse..')
+        self._log.info('reverse..')
         self.set_motor(0, -speed)
         self.set_motor(1, -speed)
 
     def spinLeft(self, speed):
-        self._log.info('🍏 spin left.')
+        self._log.info('spin left.')
         self.set_motor(0, -speed)
         self.set_motor(1, speed)
 
     def spinRight(self, speed):
-        self._log.info('🍏 spin right.')
+        self._log.info('spin right.')
         self.set_motor(0, speed)
         self.set_motor(1, -speed)
 
     def stop(self):
-        self._log.info('🍎 stop.')
+        self._log.info('stop.')
         self.set_motor(0, 0)
         self.set_motor(1, 0)
 

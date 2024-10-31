@@ -91,7 +91,7 @@ try:
         _directions = [ Direction.AHEAD, Direction.ASTERN ]
         for _direction in _directions:
             print('set direction to {}. ------------------------------ '.format(_direction))
-            _motor_controller.set_direction(_direction, 40)
+            _motor_controller.set_direction(_direction, 70)
             time.sleep(9)
             print('braking... ---------------------------------------- ')
             _motor_controller.brake()

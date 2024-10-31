@@ -55,7 +55,7 @@ class Motor(Component):
                 orientation.name, type(self._picon_zero).__name__, self._picon_zero.I2cAddress))
         # encoder/decoder ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._counter = itertools.count()
-        self._steps_per_rotation = 693  # wheels
+        self._steps_per_rotation = 693  # encoder steps per wheel rotation
         self._steps      = 0 # step counter
         self._last_steps = 0 # last step count for direction detection
         self._step_timestamps = [] # used for calculating RPM
@@ -79,9 +79,10 @@ class Motor(Component):
             raise Exception('unexpected motor orientation.')
         self._decoder = Decoder(orientation, _encoder_a, _encoder_b, self._callback_step_count, self._log.level)
         # slew limiter ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._default_slew_rate = 90
-        self._braking_scale     = 70
-        self._slew_limiter = SlewLimiter(self, rate=self._default_slew_rate, level=self._log.level)
+        self._use_slew_limiter  = False
+        self._default_slew_rate = 100
+        self._braking_scale     = 80
+        self._slew_limiter      = SlewLimiter(self, rate=self._default_slew_rate, level=self._log.level)
         self._log.info('ready.')
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -117,7 +118,7 @@ class Motor(Component):
         Resets the step counters and other variables related to historical
         movement, as well as resetting the slew limiter to its default rate.
         '''
-        self._slew_limiter.reset()
+        self._slew_limiter.rate = self._default_slew_rate
         # as well as other detritus
         self._steps      = 0 # step counter
         self._last_steps = 0 # last step count for direction detection
@@ -156,9 +157,10 @@ class Motor(Component):
 #           self._log.info(Fore.GREEN + Style.DIM + '{} motor: {:d} steps.'.format(self._orientation, self._steps))
             pass
         self._calculate_rpm()
-        _speed = self._slew_limiter()
-        if _speed:
-            self._picon_zero.set_motor(self._channel, _speed)
+        if self._use_slew_limiter:
+            _speed = self._slew_limiter()
+            if _speed:
+                self._picon_zero.set_motor(self._channel, _speed)
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
     def _calculate_rpm(self):
@@ -202,19 +204,22 @@ class Motor(Component):
         '''
         Set the speed of this motor to the provided value.
         '''
-        if self._slew_limiter.current_speed != speed:
-            self._slew_limiter.target_speed = speed
-        for _ in range(20):
-            self._slew_limiter.update()
-            _current_speed = self._slew_limiter()
-            self._picon_zero.set_motor(self._channel, _current_speed)
+        if self._use_slew_limiter:
+            if self._slew_limiter.current_speed != speed:
+                self._slew_limiter.target_speed = speed
+            for _ in range(20):
+                self._slew_limiter.update()
+                _current_speed = self._slew_limiter()
+                self._picon_zero.set_motor(self._channel, _current_speed)
+        else:
+            self._picon_zero.set_motor(self._channel, speed)
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
     def brake(self):
         '''
         Stops the motor quickly.
 
-        This changes the slew rate, so following brake you must reset the
+        This changes the slew rate, so following brake you should reset the
         slew rate to its default.
         '''
         self._slew_limiter.scale = self._braking_scale
